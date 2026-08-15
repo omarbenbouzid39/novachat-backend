@@ -1,5 +1,5 @@
-// قاعدة بيانات NovaChat الإنتاجية — PostgreSQL عبر Prisma ORM.
-// شغّل `npm run prisma:migrate:dev` أول مرة لإنشاء الجداول.
+// Ù‚Ø§Ø¹Ø¯Ø© Ø¨ÙŠØ§Ù†Ø§Øª NovaChat Ø§Ù„Ø¥Ù†ØªØ§Ø¬ÙŠØ© â€” PostgreSQL Ø¹Ø¨Ø± Prisma ORM.
+// Ø´ØºÙ‘Ù„ `npm run prisma:migrate:dev` Ø£ÙˆÙ„ Ù…Ø±Ø© Ù„Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø¬Ø¯Ø§ÙˆÙ„.
 
 generator client {
   provider = "prisma-client-js"
@@ -29,11 +29,11 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  // ===== حقول لوحة التحكم الإدارية =====
+  // ===== Ø­Ù‚ÙˆÙ„ Ù„ÙˆØ­Ø© Ø§Ù„ØªØ­ÙƒÙ… Ø§Ù„Ø¥Ø¯Ø§Ø±ÙŠØ© =====
   isBanned       Boolean   @default(false)
   bannedReason   String?
   bannedAt       DateTime?
-  isDisabled     Boolean   @default(false) // تعطيل مؤقت (يستطيع صاحب الحساب طلب إعادة التفعيل لاحقًا)
+  isDisabled     Boolean   @default(false) // ØªØ¹Ø·ÙŠÙ„ Ù…Ø¤Ù‚Øª (ÙŠØ³ØªØ·ÙŠØ¹ ØµØ§Ø­Ø¨ Ø§Ù„Ø­Ø³Ø§Ø¨ Ø·Ù„Ø¨ Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„ØªÙØ¹ÙŠÙ„ Ù„Ø§Ø­Ù‚Ù‹Ø§)
 
   refreshTokens       RefreshToken[]
   pushTokens          PushToken[]
@@ -88,8 +88,8 @@ model PushToken {
   userId     String
   token      String   @unique
   platform   String   @default("android")
-  appVersion String?  // لدعم استهداف الإشعارات حسب إصدار التطبيق من لوحة التحكم
-  locale     String?  // لدعم الاستهداف حسب اللغة
+  appVersion String?  // Ù„Ø¯Ø¹Ù… Ø§Ø³ØªÙ‡Ø¯Ø§Ù Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±Ø§Øª Ø­Ø³Ø¨ Ø¥ØµØ¯Ø§Ø± Ø§Ù„ØªØ·Ø¨ÙŠÙ‚ Ù…Ù† Ù„ÙˆØ­Ø© Ø§Ù„ØªØ­ÙƒÙ…
+  locale     String?  // Ù„Ø¯Ø¹Ù… Ø§Ù„Ø§Ø³ØªÙ‡Ø¯Ø§Ù Ø­Ø³Ø¨ Ø§Ù„Ù„ØºØ©
   createdAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -130,10 +130,10 @@ model Message {
   senderId              String
   type                  String   // TEXT | IMAGE | VIDEO | VOICE | FILE | GIF | STICKER | LOCATION | SYSTEM
   text                  String?
-  mediaJson             String?  // JSON مُسلسل لعناصر MediaItem (روابط Cloudinary فقط)
+  mediaJson             String?  // JSON Ù…ÙØ³Ù„Ø³Ù„ Ù„Ø¹Ù†Ø§ØµØ± MediaItem (Ø±ÙˆØ§Ø¨Ø· Cloudinary ÙÙ‚Ø·)
   replyToMessageId      String?
   forwardedFromUserId   String?
-  reactionsJson         String?  // JSON: { "👍": ["userId1","userId2"] }
+  reactionsJson         String?  // JSON: { "ðŸ‘": ["userId1","userId2"] }
   status                String   @default("SENT")
   isEdited              Boolean  @default(false)
   isDeletedForEveryone  Boolean  @default(false)
@@ -183,8 +183,8 @@ model Post {
   id             String   @id @default(uuid())
   authorId       String
   text           String?
-  mediaJson      String?  // JSON لعناصر MediaItem
-  pollJson       String?  // JSON لبيانات الاستطلاع والأصوات
+  mediaJson      String?  // JSON Ù„Ø¹Ù†Ø§ØµØ± MediaItem
+  pollJson       String?  // JSON Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø§Ø³ØªØ·Ù„Ø§Ø¹ ÙˆØ§Ù„Ø£ØµÙˆØ§Øª
   hashtagsJson   String?  // JSON: ["tag1","tag2"]
   isRepost       Boolean  @default(false)
   originalPostId String?
@@ -225,7 +225,7 @@ model Comment {
 
 model Notification {
   id          String   @id @default(uuid())
-  targetId    String   // userId المستقبِل
+  targetId    String   // userId Ø§Ù„Ù…Ø³ØªÙ‚Ø¨ÙÙ„
   type        String   // MESSAGE | LIKE | COMMENT | FOLLOW | MENTION | ROOM_INVITE | SYSTEM
   actorUserId String
   relatedId   String?
@@ -239,8 +239,8 @@ model Notification {
 }
 
 // ======================================================================
-// نماذج لوحة تحكم الإدارة (Admin Dashboard) — منفصلة تمامًا عن حسابات
-// المستخدمين العاديين (AdminUser مستقل عن User، بجدول جلسات ومصادقة خاصة).
+// Ù†Ù…Ø§Ø°Ø¬ Ù„ÙˆØ­Ø© ØªØ­ÙƒÙ… Ø§Ù„Ø¥Ø¯Ø§Ø±Ø© (Admin Dashboard) â€” Ù…Ù†ÙØµÙ„Ø© ØªÙ…Ø§Ù…Ù‹Ø§ Ø¹Ù† Ø­Ø³Ø§Ø¨Ø§Øª
+// Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙŠÙ† Ø§Ù„Ø¹Ø§Ø¯ÙŠÙŠÙ† (AdminUser Ù…Ø³ØªÙ‚Ù„ Ø¹Ù† UserØŒ Ø¨Ø¬Ø¯ÙˆÙ„ Ø¬Ù„Ø³Ø§Øª ÙˆÙ…ØµØ§Ø¯Ù‚Ø© Ø®Ø§ØµØ©).
 // ======================================================================
 
 model AdminUser {
@@ -281,10 +281,10 @@ model AdminRefreshToken {
 model AuditLog {
   id         String   @id @default(uuid())
   adminId    String
-  action     String   // مثال: "USER_BANNED", "POST_DELETED", "VERIFICATION_APPROVED"
+  action     String   // Ù…Ø«Ø§Ù„: "USER_BANNED", "POST_DELETED", "VERIFICATION_APPROVED"
   targetType String   // USER | POST | ROOM | MESSAGE | VERIFICATION | NOTIFICATION | REPORT
   targetId   String?
-  metadataJson String? // تفاصيل إضافية (سبب، قيم قبل/بعد...) كـ JSON نصي
+  metadataJson String? // ØªÙØ§ØµÙŠÙ„ Ø¥Ø¶Ø§ÙÙŠØ© (Ø³Ø¨Ø¨ØŒ Ù‚ÙŠÙ… Ù‚Ø¨Ù„/Ø¨Ø¹Ø¯...) ÙƒÙ€ JSON Ù†ØµÙŠ
   createdAt  DateTime @default(now())
 
   admin AdminUser @relation(fields: [adminId], references: [id])
@@ -316,9 +316,9 @@ model Report {
 model VerificationRequest {
   id          String   @id @default(uuid())
   userId      String
-  type        String   @default("IDENTITY") // IDENTITY | BUSINESS | PUBLIC_FIGURE | CREATOR (قابلة للتوسعة مستقبلًا)
-  reason      String?  // سبب/رسالة مقدّم الطلب
-  documentUrl String?  // رابط Cloudinary لمستند إثبات (اختياري)
+  type        String   @default("IDENTITY") // IDENTITY | BUSINESS | PUBLIC_FIGURE | CREATOR (Ù‚Ø§Ø¨Ù„Ø© Ù„Ù„ØªÙˆØ³Ø¹Ø© Ù…Ø³ØªÙ‚Ø¨Ù„Ù‹Ø§)
+  reason      String?  // Ø³Ø¨Ø¨/Ø±Ø³Ø§Ù„Ø© Ù…Ù‚Ø¯Ù‘Ù… Ø§Ù„Ø·Ù„Ø¨
+  documentUrl String?  // Ø±Ø§Ø¨Ø· Cloudinary Ù„Ù…Ø³ØªÙ†Ø¯ Ø¥Ø«Ø¨Ø§Øª (Ø§Ø®ØªÙŠØ§Ø±ÙŠ)
   status      String   @default("PENDING") // PENDING | APPROVED | REJECTED
   rejectionReason String?
   reviewedById String?
@@ -345,11 +345,11 @@ model MediaAsset {
   @@index([type])
 }
 
-/** حدث نشاط يومي مبسّط لكل مستخدم — يُستخدم لحساب DAU/WAU/MAU بدقة معقولة. */
+// حدث نشاط يومي مبسط لكل مستخدم — يستخدم لحساب DAU/WAU/MAU بدقة معقولة.
 model ActivityEvent {
   id     String   @id @default(uuid())
   userId String
-  day    DateTime // يُخزَّن بمنتصف ليل اليوم (00:00 UTC) لتسهيل التجميع
+  day    DateTime // ÙŠÙØ®Ø²ÙŽÙ‘Ù† Ø¨Ù…Ù†ØªØµÙ Ù„ÙŠÙ„ Ø§Ù„ÙŠÙˆÙ… (00:00 UTC) Ù„ØªØ³Ù‡ÙŠÙ„ Ø§Ù„ØªØ¬Ù…ÙŠØ¹
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -362,7 +362,7 @@ model BroadcastNotification {
   sentById     String
   title        String
   body         String
-  audienceJson String   // معايير الاستهداف (الكل/بلد/لغة/إصدار) كـ JSON نصي
+  audienceJson String   // Ù…Ø¹Ø§ÙŠÙŠØ± Ø§Ù„Ø§Ø³ØªÙ‡Ø¯Ø§Ù (Ø§Ù„ÙƒÙ„/Ø¨Ù„Ø¯/Ù„ØºØ©/Ø¥ØµØ¯Ø§Ø±) ÙƒÙ€ JSON Ù†ØµÙŠ
   recipientsCount Int   @default(0)
   successCount Int      @default(0)
   failureCount Int      @default(0)
