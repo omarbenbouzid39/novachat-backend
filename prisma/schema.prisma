@@ -1,0 +1,370 @@
+// قاعدة بيانات NovaChat الإنتاجية — PostgreSQL عبر Prisma ORM.
+// شغّل `npm run prisma:migrate:dev` أول مرة لإنشاء الجداول.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  username       String   @unique
+  email          String?  @unique
+  phone          String?  @unique
+  passwordHash   String?
+  displayName    String
+  avatarUrl      String?
+  coverUrl       String?
+  bio            String   @default("")
+  country        String?
+  statusMessage  String?
+  authProvider   String   @default("EMAIL") // EMAIL | PHONE | GOOGLE | APPLE | GUEST
+  isVerified     Boolean  @default(false)
+  isOnline       Boolean  @default(false)
+  lastSeenAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // ===== حقول لوحة التحكم الإدارية =====
+  isBanned       Boolean   @default(false)
+  bannedReason   String?
+  bannedAt       DateTime?
+  isDisabled     Boolean   @default(false) // تعطيل مؤقت (يستطيع صاحب الحساب طلب إعادة التفعيل لاحقًا)
+
+  refreshTokens       RefreshToken[]
+  pushTokens          PushToken[]
+  sentMessages        Message[]            @relation("MessageSender")
+  ownedRooms          Room[]               @relation("RoomOwner")
+  roomMemberships     RoomMember[]
+  posts               Post[]
+  comments            Comment[]
+  postLikes           PostLike[]
+  conversationMembers ConversationParticipant[]
+  followedBy          Follow[]             @relation("Following")
+  following           Follow[]             @relation("Followers")
+  notifications       Notification[]       @relation("NotificationTarget")
+  verificationRequests VerificationRequest[]
+  reportsFiled        Report[]             @relation("ReportedBy")
+  mediaAssets         MediaAsset[]
+  activityEvents      ActivityEvent[]
+
+  @@index([username])
+  @@index([isBanned])
+  @@index([createdAt])
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Followers", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  deviceInfo String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PushToken {
+  id         String   @id @default(uuid())
+  userId     String
+  token      String   @unique
+  platform   String   @default("android")
+  appVersion String?  // لدعم استهداف الإشعارات حسب إصدار التطبيق من لوحة التحكم
+  locale     String?  // لدعم الاستهداف حسب اللغة
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Conversation {
+  id            String   @id @default(uuid())
+  type          String   // PRIVATE | GROUP
+  title         String?
+  avatarUrl     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  participants  ConversationParticipant[]
+  messages      Message[]
+}
+
+model ConversationParticipant {
+  id             String   @id @default(uuid())
+  conversationId String
+  userId         String
+  unreadCount    Int      @default(0)
+  isMuted        Boolean  @default(false)
+  isPinned       Boolean  @default(false)
+  lastReadAt     DateTime?
+  joinedAt       DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id                    String   @id @default(uuid())
+  conversationId        String
+  senderId              String
+  type                  String   // TEXT | IMAGE | VIDEO | VOICE | FILE | GIF | STICKER | LOCATION | SYSTEM
+  text                  String?
+  mediaJson             String?  // JSON مُسلسل لعناصر MediaItem (روابط Cloudinary فقط)
+  replyToMessageId      String?
+  forwardedFromUserId   String?
+  reactionsJson         String?  // JSON: { "👍": ["userId1","userId2"] }
+  status                String   @default("SENT")
+  isEdited              Boolean  @default(false)
+  isDeletedForEveryone  Boolean  @default(false)
+  isPinned              Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  editedAt              DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("MessageSender", fields: [senderId], references: [id])
+
+  @@index([conversationId, createdAt])
+}
+
+model Room {
+  id           String   @id @default(uuid())
+  name         String
+  description  String   @default("")
+  iconUrl      String?
+  bannerUrl    String?
+  visibility   String   @default("PUBLIC") // PUBLIC | PRIVATE
+  ownerId      String
+  parentRoomId String?
+  rulesJson    String?  // JSON: ["rule1","rule2"]
+  createdAt    DateTime @default(now())
+
+  owner   User         @relation("RoomOwner", fields: [ownerId], references: [id])
+  members RoomMember[]
+
+  @@index([visibility])
+}
+
+model RoomMember {
+  id       String   @id @default(uuid())
+  roomId   String
+  userId   String
+  role     String   @default("MEMBER") // OWNER | ADMIN | MODERATOR | MEMBER
+  isMuted  Boolean  @default(false)
+  joinedAt DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+}
+
+model Post {
+  id             String   @id @default(uuid())
+  authorId       String
+  text           String?
+  mediaJson      String?  // JSON لعناصر MediaItem
+  pollJson       String?  // JSON لبيانات الاستطلاع والأصوات
+  hashtagsJson   String?  // JSON: ["tag1","tag2"]
+  isRepost       Boolean  @default(false)
+  originalPostId String?
+  likesCount     Int      @default(0)
+  commentsCount  Int      @default(0)
+  repostsCount   Int      @default(0)
+  sharesCount    Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  author   User       @relation(fields: [authorId], references: [id])
+  likes    PostLike[]
+  comments Comment[]
+
+  @@index([createdAt])
+}
+
+model PostLike {
+  id     String @id @default(uuid())
+  postId String
+  userId String
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  postId    String
+  authorId  String
+  text      String
+  createdAt DateTime @default(now())
+
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id])
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  targetId    String   // userId المستقبِل
+  type        String   // MESSAGE | LIKE | COMMENT | FOLLOW | MENTION | ROOM_INVITE | SYSTEM
+  actorUserId String
+  relatedId   String?
+  message     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  target User @relation("NotificationTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([targetId, createdAt])
+}
+
+// ======================================================================
+// نماذج لوحة تحكم الإدارة (Admin Dashboard) — منفصلة تمامًا عن حسابات
+// المستخدمين العاديين (AdminUser مستقل عن User، بجدول جلسات ومصادقة خاصة).
+// ======================================================================
+
+model AdminUser {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  passwordHash      String
+  displayName       String
+  role              String   @default("SUPPORT") // SUPER_ADMIN | ADMIN | MODERATOR | SUPPORT
+  isActive          Boolean  @default(true)
+  twoFactorSecret   String?
+  twoFactorEnabled  Boolean  @default(false)
+  lastLoginAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  auditLogs         AuditLog[]
+  reviewedVerifications VerificationRequest[] @relation("VerificationReviewer")
+  resolvedReports   Report[]                  @relation("ReportResolver")
+  refreshTokens     AdminRefreshToken[]
+
+  @@index([role])
+}
+
+model AdminRefreshToken {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  adminId    String
+  expiresAt  DateTime
+  revoked    Boolean  @default(false)
+  deviceInfo String?
+  createdAt  DateTime @default(now())
+
+  admin AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  adminId    String
+  action     String   // مثال: "USER_BANNED", "POST_DELETED", "VERIFICATION_APPROVED"
+  targetType String   // USER | POST | ROOM | MESSAGE | VERIFICATION | NOTIFICATION | REPORT
+  targetId   String?
+  metadataJson String? // تفاصيل إضافية (سبب، قيم قبل/بعد...) كـ JSON نصي
+  createdAt  DateTime @default(now())
+
+  admin AdminUser @relation(fields: [adminId], references: [id])
+
+  @@index([adminId, createdAt])
+  @@index([targetType, targetId])
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  reporterId  String
+  targetType  String   // USER | POST | ROOM | MESSAGE | COMMENT
+  targetId    String
+  reason      String
+  details     String?
+  status      String   @default("PENDING") // PENDING | REVIEWED | DISMISSED | ACTION_TAKEN
+  resolvedById String?
+  resolvedAt  DateTime?
+  resolutionNote String?
+  createdAt   DateTime @default(now())
+
+  reporter   User       @relation("ReportedBy", fields: [reporterId], references: [id], onDelete: Cascade)
+  resolvedBy AdminUser? @relation("ReportResolver", fields: [resolvedById], references: [id])
+
+  @@index([status, createdAt])
+  @@index([targetType, targetId])
+}
+
+model VerificationRequest {
+  id          String   @id @default(uuid())
+  userId      String
+  type        String   @default("IDENTITY") // IDENTITY | BUSINESS | PUBLIC_FIGURE | CREATOR (قابلة للتوسعة مستقبلًا)
+  reason      String?  // سبب/رسالة مقدّم الطلب
+  documentUrl String?  // رابط Cloudinary لمستند إثبات (اختياري)
+  status      String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  rejectionReason String?
+  reviewedById String?
+  reviewedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy AdminUser? @relation("VerificationReviewer", fields: [reviewedById], references: [id])
+
+  @@index([status, createdAt])
+}
+
+model MediaAsset {
+  id         String   @id @default(uuid())
+  uploadedById String
+  type       String   // IMAGE | VIDEO | AUDIO | FILE | GIF
+  url        String
+  bytes      Int?
+  createdAt  DateTime @default(now())
+
+  uploadedBy User @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([type])
+}
+
+/** حدث نشاط يومي مبسّط لكل مستخدم — يُستخدم لحساب DAU/WAU/MAU بدقة معقولة. */
+model ActivityEvent {
+  id     String   @id @default(uuid())
+  userId String
+  day    DateTime // يُخزَّن بمنتصف ليل اليوم (00:00 UTC) لتسهيل التجميع
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, day])
+  @@index([day])
+}
+
+model BroadcastNotification {
+  id           String   @id @default(uuid())
+  sentById     String
+  title        String
+  body         String
+  audienceJson String   // معايير الاستهداف (الكل/بلد/لغة/إصدار) كـ JSON نصي
+  recipientsCount Int   @default(0)
+  successCount Int      @default(0)
+  failureCount Int      @default(0)
+  createdAt    DateTime @default(now())
+}
